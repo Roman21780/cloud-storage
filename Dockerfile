@@ -1,4 +1,9 @@
-FROM ubuntu:latest
-LABEL authors="Roman"
+FROM openjdk:21-ea-1-jdk-slim
 
-ENTRYPOINT ["top", "-b"]
+WORKDIR /app
+
+COPY build/libs/cloud-storage-1.0.0.jar app.jar
+
+EXPOSE 8080
+
+ENTRYPOINT ["java", "-jar", "app.jar"]

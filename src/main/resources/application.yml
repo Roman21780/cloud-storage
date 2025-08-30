@@ -1,0 +1,39 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /cloud
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/clouddb
+    username: clouduser
+    password: cloudpass
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    show-sql: true
+
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+logging:
+  level:
+    com.example.cloudstorage: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+file:
+  storage:
+    location: ./uploads
