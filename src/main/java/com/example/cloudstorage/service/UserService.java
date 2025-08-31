@@ -1,6 +1,7 @@
 package com.example.cloudstorage.service;
 
 import com.example.cloudstorage.entity.UserEntity;
+import com.example.cloudstorage.config.SecurityConfig;
 import com.example.cloudstorage.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
