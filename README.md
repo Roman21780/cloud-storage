@@ -51,22 +51,33 @@ cloud-storage/
 - Gradle
 - Docker & Docker Compose
 
+## Создаем базу данных и пользователя PostgreSQL
+
+psql -U postgres
+
+## В интерфейсе psql выполните:
+CREATE DATABASE clouddb;
+CREATE USER clouduser WITH PASSWORD 'cloudpass';
+GRANT ALL PRIVILEGES ON DATABASE clouddb TO clouduser;
+ALTER DATABASE clouddb OWNER TO clouduser;
+\q
+
 ## Запуск приложения
 
 ### Сборка и запуск через Docker Compose
 
 bash
-# Сборка приложения
-./gradlew build
+# Очистка и сборка приложения
+./gradlew clean build
+
+## Запуск приложения
+
+./gradlew bootRun
+
 
 # Запуск всех сервисов
 docker-compose up -d
 
-
-# Ручной запуск
-bash
-# Сборка
-./gradlew build
 
 # Запуск базы данных
 docker-compose up postgres -d

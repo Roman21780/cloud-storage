@@ -2,8 +2,8 @@ package com.example.cloudstorage.service;
 
 import com.example.cloudstorage.entity.FileEntity;
 import com.example.cloudstorage.entity.UserEntity;
+import com.example.cloudstorage.exception.FileStorageException;
 import com.example.cloudstorage.repository.FileRepository;
-import com.example.cloudstorage.util.FileUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -14,6 +14,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -25,18 +26,33 @@ public class FileStorageService {
     private String storageLocation;
 
     public void saveFile(UserEntity user, String filename, MultipartFile file) throws IOException {
-        Path storagePath = Paths.get(storageLocation);
+        // Валидация имени файла
+        validateFilename(filename);
+
+        Path storagePath = Paths.get(storageLocation).toAbsolutePath().normalize();
         if (!Files.exists(storagePath)) {
             Files.createDirectories(storagePath);
         }
 
         String userDir = user.getLogin();
-        Path userPath = storagePath.resolve(userDir);
+        Path userPath = storagePath.resolve(userDir).normalize();
+
+        // Проверка, что путь остается внутри целевой директории
+        if (!userPath.startsWith(storagePath)) {
+            throw new FileStorageException("Invalid file path");
+        }
+
         if (!Files.exists(userPath)) {
             Files.createDirectories(userPath);
         }
 
-        Path filePath = userPath.resolve(filename);
+        Path filePath = userPath.resolve(filename).normalize();
+
+        // Дополнительная проверка безопасности
+        if (!filePath.startsWith(userPath)) {
+            throw new FileStorageException("Invalid file path: attempted path traversal");
+        }
+
         Files.write(filePath, file.getBytes());
 
         FileEntity fileEntity = new FileEntity();
@@ -49,18 +65,23 @@ public class FileStorageService {
         fileRepository.save(fileEntity);
     }
 
-    public byte[] getFile(UserEntity user, String filename) throws  IOException {
+    public byte[] getFile(UserEntity user, String filename) throws IOException {
+        validateFilename(filename);
         Path filePath = getFilePath(user, filename);
         return Files.readAllBytes(filePath);
     }
 
     public void deleteFile(UserEntity user, String filename) throws IOException {
+        validateFilename(filename);
         Path filePath = getFilePath(user, filename);
         Files.deleteIfExists(filePath);
         fileRepository.deleteByUserAndFilename(user, filename);
     }
 
     public void renameFile(UserEntity user, String oldFilename, String newFilename) throws IOException {
+        validateFilename(oldFilename);
+        validateFilename(newFilename);
+
         Path oldPath = getFilePath(user, oldFilename);
         Path newPath = getFilePath(user, newFilename);
 
@@ -79,11 +100,61 @@ public class FileStorageService {
         return limit > 0 ? files.stream().limit(limit).toList() : files;
     }
 
-    private Path getFilePath(UserEntity user, String filename) {
-        return Paths.get(storageLocation).resolve(user.getLogin()).resolve(filename);
+    private Path getFilePath(UserEntity user, String filename) throws IOException {
+        validateFilename(filename);
+
+        Path storagePath = Paths.get(storageLocation).toAbsolutePath().normalize();
+        Path userPath = storagePath.resolve(user.getLogin()).normalize();
+        Path filePath = userPath.resolve(filename).normalize();
+
+        // Проверка безопасности
+        if (!filePath.startsWith(userPath)) {
+            throw new FileStorageException("Invalid file path: attempted path traversal");
+        }
+
+        return filePath;
     }
 
     public boolean fileExists(UserEntity user, String filename) {
-        return fileRepository.existsByUserAndFilename(user, filename);
+        try {
+            validateFilename(filename);
+            return fileRepository.existsByUserAndFilename(user, filename);
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    // Валидация имени файла против Path Traversal
+    private void validateFilename(String filename) {
+        if (filename == null || filename.isEmpty()) {
+            throw new IllegalArgumentException("Filename cannot be null or empty");
+        }
+
+        // Проверка на попытку Path Traversal
+        if (filename.contains("..") || filename.contains("/") || filename.contains("\\")) {
+            throw new IllegalArgumentException("Invalid filename: path traversal attempt detected");
+        }
+
+        // Проверка на недопустимые символы
+        if (!filename.matches("^[a-zA-Z0-9._-]+$")) {
+            throw new IllegalArgumentException("Filename contains invalid characters");
+        }
+
+        // Проверка длины
+        if (filename.length() > 255) {
+            throw new IllegalArgumentException("Filename too long");
+        }
+    }
+
+    // Альтернативный безопасный подход: генерация уникального имени
+    public String generateSafeFilename(String originalFilename) {
+        String extension = "";
+        int dotIndex = originalFilename.lastIndexOf('.');
+        if (dotIndex > 0) {
+            extension = originalFilename.substring(dotIndex);
+        }
+
+        // Генерация UUID + оригинальное расширение
+        return UUID.randomUUID() + extension;
     }
 }

@@ -1,16 +1,17 @@
 package com.example.cloudstorage.service;
 
 import com.example.cloudstorage.entity.UserEntity;
-import com.example.cloudstorage.config.SecurityConfig;
 import com.example.cloudstorage.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 public class UserService {
+
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
@@ -22,5 +23,19 @@ public class UserService {
         return userRepository.findByLogin(login)
                 .map(user -> passwordEncoder.matches(password, user.getPassword()))
                 .orElse(false);
+    }
+
+    public UserEntity registerUser(String login, String password) {
+        if (userRepository.findByLogin(login).isPresent()) {
+            throw new RuntimeException("User already exists");
+        }
+
+        UserEntity user = new UserEntity();
+        user.setLogin(login);
+        user.setEmail(login); // Используем login как email
+        user.setPassword(passwordEncoder.encode(password));
+        user.setCreatedAt(LocalDateTime.now());
+
+        return userRepository.save(user);
     }
 }

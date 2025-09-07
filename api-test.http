@@ -1,0 +1,117 @@
+### Base URL
+@baseUrl = http://localhost:8080/cloud
+@contentType = application/json
+@authToken = {{login.response.body.authToken}}
+
+### 1. Регистрация нового пользователя
+# @name register
+POST {{baseUrl}}/register
+Content-Type: {{contentType}}
+
+{
+  "login": "testuser@example.com",
+  "password": "TestPass123!"
+}
+
+### 2. Логин пользователя
+# @name login
+POST {{baseUrl}}/login
+Content-Type: {{contentType}}
+
+{
+  "login": "testuser@example.com",
+  "password": "TestPass123!"
+}
+
+### 3. Логин с неверными credentials
+POST {{baseUrl}}/login
+Content-Type: {{contentType}}
+
+{
+  "login": "wronguser",
+  "password": "wrongpass"
+}
+
+### 4. Загрузка файла (требует авторизации)
+POST {{baseUrl}}/file
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+Authorization: Bearer {{authToken}}
+
+--WebAppBoundary
+Content-Disposition: form-data; name="filename"
+Content-Type: text/plain
+
+test-file.txt
+--WebAppBoundary
+Content-Disposition: form-data; name="file"; filename="test-file.txt"
+Content-Type: text/plain
+
+< ./test-file.txt
+--WebAppBoundary--
+
+### 5. Получение списка файлов (требует авторизации)
+GET {{baseUrl}}/list?limit=10
+Authorization: Bearer {{authToken}}
+Content-Type: {{contentType}}
+
+### 6. Скачивание файла (требует авторизации)
+GET {{baseUrl}}/file?filename=test-file.txt
+Authorization: Bearer {{authToken}}
+
+### 7. Переименование файла (требует авторизации)
+PUT {{baseUrl}}/file?filename=test-file.txt
+Authorization: Bearer {{authToken}}
+Content-Type: {{contentType}}
+
+{
+  "name": "renamed-file.txt"
+}
+
+### 8. Удаление файла (требует авторизации)
+DELETE {{baseUrl}}/file?filename=renamed-file.txt
+Authorization: Bearer {{authToken}}
+Content-Type: {{contentType}}
+
+### 9. Выход из системы (требует авторизации)
+POST {{baseUrl}}/logout
+Authorization: Bearer {{authToken}}
+Content-Type: {{contentType}}
+
+### 10. OPTIONS запрос для CORS проверки
+OPTIONS {{baseUrl}}/login
+Access-Control-Request-Method: POST
+Access-Control-Request-Headers: content-type
+Origin: http://localhost:8081
+
+### 11. Проверка здоровья приложения
+GET {{baseUrl}}/actuator/health
+
+### 12. Получение информации о приложении
+GET {{baseUrl}}/actuator/info
+
+### 13. Тест с неверным токеном
+GET {{baseUrl}}/list
+Authorization: Bearer invalid-token-here
+Content-Type: {{contentType}}
+
+### 14. Тест без токена
+GET {{baseUrl}}/list
+Content-Type: {{contentType}}
+
+### 15. Регистрация второго пользователя
+POST {{baseUrl}}/register
+Content-Type: {{contentType}}
+
+{
+  "login": "anotheruser@example.com",
+  "password": "AnotherPass123!"
+}
+
+### 16. Логин второго пользователя
+POST {{baseUrl}}/login
+Content-Type: {{contentType}}
+
+{
+  "login": "anotheruser@example.com",
+  "password": "AnotherPass123!"
+}
