@@ -64,13 +64,29 @@ public class CloudStorageController {
             @RequestHeader(value = "auth-token", required = false) String authToken) {
 
         String token = extractTokenFromHeaders(authHeader, authToken);
+        logRequest("Logout", authHeader, authToken, token);
 
-        if (token != null && tokenService.validateToken(token)) {
-            tokenService.invalidateToken(token);
-            return ResponseEntity.ok().build();
+        if (token == null) {
+            System.out.println("❌ No token provided for logout");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ErrorResponse("No token provided", 400));
         }
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(new ErrorResponse("Unauthorized", 401));
+
+        if (!tokenService.validateToken(token)) {
+            System.out.println("❌ Invalid token for logout: " + token);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new ErrorResponse("Invalid token", 401));
+        }
+
+        try {
+            tokenService.invalidateToken(token);
+            System.out.println("✅ Logout successful for token: " + token);
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            System.out.println("❌ Error during logout: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse("Logout failed", 500));
+        }
     }
 
     @PostMapping("/file")

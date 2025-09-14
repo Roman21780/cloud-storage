@@ -15,8 +15,6 @@ public class TokenService {
     }
 
     public String generateToken(String username) {
-        // Инвалидируем старые токены пользователя
-        tokenRepository.invalidateUserTokens(username);
 
         String token = UUID.randomUUID().toString();
 

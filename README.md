@@ -90,6 +90,9 @@ docker-compose up postgres -d
 
 # Запуск приложения
 java -jar build/libs/cloud-storage-1.0.0.jar
+или
+без тестов
+./gradlew clean build -x test
 
 
 ## API Endpoints

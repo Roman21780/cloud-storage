@@ -34,12 +34,12 @@ Content-Type: {{contentType}}
 
 ### 4. Проверка валидности токена (ЗАМЕНИТЕ на реальный токен из шага 2)
 GET {{baseUrl}}/list?limit=1
-Authorization: Bearer aa63341a-b3de-44b8-ad69-ae40d9c1f5c6
+Authorization: Bearer 45982a60-a3d5-478a-a6e9-a8bebfd6ca5b
 Content-Type: {{contentType}}
 
 ### 4. Загрузка файла
 POST {{baseUrl}}/file?filename=test-file.txt
-Authorization: Bearer aa63341a-b3de-44b8-ad69-ae40d9c1f5c6
+Authorization: Bearer 45982a60-a3d5-478a-a6e9-a8bebfd6ca5b
 Content-Type: application/json
 
 {
@@ -50,16 +50,16 @@ Content-Type: application/json
 
 ### 5. Получение списка файлов (требует авторизации)
 GET {{baseUrl}}/list?limit=10
-Authorization: Bearer aa63341a-b3de-44b8-ad69-ae40d9c1f5c6
+Authorization: Bearer d2eee481-0802-4321-a67e-ceaf21cc35d1
 Content-Type: {{contentType}}
 
 ### 6. Скачивание файла (требует авторизации)
 GET {{baseUrl}}/file?filename=test-file.txt
-Authorization: Bearer aa63341a-b3de-44b8-ad69-ae40d9c1f5c6
+Authorization: Bearer d2eee481-0802-4321-a67e-ceaf21cc35d1
 
 ### 7. Переименование файла (требует авторизации)
 PUT {{baseUrl}}/file?filename=test-file.txt
-Authorization: Bearer aa63341a-b3de-44b8-ad69-ae40d9c1f5c6
+Authorization: Bearer d2eee481-0802-4321-a67e-ceaf21cc35d1
 Content-Type: {{contentType}}
 
 {
@@ -68,12 +68,12 @@ Content-Type: {{contentType}}
 
 ### 8. Удаление файла (требует авторизации)
 DELETE {{baseUrl}}/file?filename=renamed-file.txt
-Authorization: Bearer aa63341a-b3de-44b8-ad69-ae40d9c1f5c6
+Authorization: Bearer d2eee481-0802-4321-a67e-ceaf21cc35d1
 Content-Type: {{contentType}}
 
 ### 9. Выход из системы (требует авторизации)
 POST {{baseUrl}}/logout
-Authorization: Bearer aa63341a-b3de-44b8-ad69-ae40d9c1f5c6
+Authorization: Bearer d2eee481-0802-4321-a67e-ceaf21cc35d1
 Content-Type: {{contentType}}
 
 ### 10. OPTIONS запрос для CORS проверки
@@ -88,12 +88,12 @@ GET {{baseUrl}}/actuator/health
 ### 12. Получение информации о приложении
 GET {{baseUrl}}/actuator/info
 
-### 13. Тест с неверным токеном
+### 13. Тест с неверным токеном (401)
 GET {{baseUrl}}/list
-Authorization: Bearer invalid-token-here
+Authorization: Bearer 5ead8849-0033-4b1a-9cb4-f7bc1659fbb4
 Content-Type: {{contentType}}
 
-### 14. Тест без токена
+### 14. Тест без токена (401)
 GET {{baseUrl}}/list
 Content-Type: {{contentType}}
 

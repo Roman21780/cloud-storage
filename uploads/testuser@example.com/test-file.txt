@@ -1,0 +1,2 @@
+This is a test file content for API testing.
+Hello from Cloud Storage API!

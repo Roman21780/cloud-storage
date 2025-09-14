@@ -40,12 +40,17 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authz -> authz
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/login", "/register", "/actuator/health").permitAll()
+                        // Разрешаем actuator endpoints
+                        .requestMatchers("/actuator/health", "/actuator/info", "/actuator/**").permitAll()
+                        // Разрешаем auth endpoints
+                        .requestMatchers("/login", "/register", "/logout").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
+                // ОТКЛЮЧАЕМ СТАНДАРТНЫЙ LOGOUT
+                .logout(AbstractHttpConfigurer::disable)
                 // Добавляем наш кастомный фильтр ДО стандартной аутентификации
                 .addFilterBefore(new TokenAuthenticationFilter(tokenService),
                         UsernamePasswordAuthenticationFilter.class);
