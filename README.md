@@ -8,8 +8,8 @@ cloud-storage/
 │   ├── java/com/example/cloudstorage/
 │   │   ├── CloudStorageApplication.java
 │   │   ├── config/
-│   │   │   ├── SecurityConfig.java
-│   │   │   └── WebConfig.java
+│   │   │   └── SecurityConfig.java
+│   │   │   
 │   │   ├── controller/
 │   │   │   └── CloudStorageController.java
 │   │   ├── dto/
@@ -17,22 +17,23 @@ cloud-storage/
 │   │   │   ├── AuthResponse.java
 │   │   │   ├── ErrorResponse.java
 │   │   │   ├── FileResponse.java
+|   |   |   ├── RegisterRequest.java
+|   |   |   ├── RegisterResponse.java
 │   │   │   └── RenameRequest.java
 │   │   ├── entity/
 │   │   │   ├── FileEntity.java
 │   │   │   └── UserEntity.java
 │   │   ├── exception/
-│   │   │   ├── FileStorageException.java
-│   │   │   └── UserNotFoundException.java
+│   │   │   └── FileStorageException.java
+│   │   │   
 │   │   ├── repository/
 │   │   │   ├── FileRepository.java
 │   │   │   └── UserRepository.java
-│   │   ├── service/
-│   │   │   ├── FileStorageService.java
-│   │   │   ├── TokenService.java
-│   │   │   └── UserService.java
-│   │   └── util/
-│   │       └── FileUtil.java
+│   │   └── service/
+│   │       ├── FileStorageService.java
+│   │       ├── TokenService.java
+│   │       └── UserService.java
+│   │    
 │   └── resources/
 │       ├── application.yml
 │       └── db/
@@ -61,6 +62,11 @@ CREATE USER clouduser WITH PASSWORD 'cloudpass';
 GRANT ALL PRIVILEGES ON DATABASE clouddb TO clouduser;
 ALTER DATABASE clouddb OWNER TO clouduser;
 \q
+
+## Пересоздать базу
+
+DROP DATABASE clouddb;
+CREATE DATABASE clouddb OWNER clouduser;
 
 ## Запуск приложения
 

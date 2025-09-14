@@ -1,7 +1,7 @@
 ### Base URL
 @baseUrl = http://localhost:8080/cloud
 @contentType = application/json
-@authToken = {{login.response.body.authToken}}
+#@authToken = {{login.response.body.authToken}}
 
 ### 1. Регистрация нового пользователя
 # @name register
@@ -32,35 +32,34 @@ Content-Type: {{contentType}}
   "password": "wrongpass"
 }
 
-### 4. Загрузка файла (требует авторизации)
-POST {{baseUrl}}/file
-Content-Type: multipart/form-data; boundary=WebAppBoundary
-Authorization: Bearer {{authToken}}
+### 4. Проверка валидности токена (ЗАМЕНИТЕ на реальный токен из шага 2)
+GET {{baseUrl}}/list?limit=1
+Authorization: Bearer aa63341a-b3de-44b8-ad69-ae40d9c1f5c6
+Content-Type: {{contentType}}
 
---WebAppBoundary
-Content-Disposition: form-data; name="filename"
-Content-Type: text/plain
+### 4. Загрузка файла
+POST {{baseUrl}}/file?filename=test-file.txt
+Authorization: Bearer aa63341a-b3de-44b8-ad69-ae40d9c1f5c6
+Content-Type: application/json
 
-test-file.txt
---WebAppBoundary
-Content-Disposition: form-data; name="file"; filename="test-file.txt"
-Content-Type: text/plain
-
-< ./test-file.txt
---WebAppBoundary--
+{
+  "content": "VGhpcyBpcyBhIHRlc3QgZmlsZSBjb250ZW50IGZvciBBUEkgdGVzdGluZy4KSGVsbG8gZnJvbSBDbG91ZCBTdG9yYWdlIEFQSSE=",
+  "contentType": "text/plain",
+  "originalFilename": "test-file.txt"
+}
 
 ### 5. Получение списка файлов (требует авторизации)
 GET {{baseUrl}}/list?limit=10
-Authorization: Bearer {{authToken}}
+Authorization: Bearer aa63341a-b3de-44b8-ad69-ae40d9c1f5c6
 Content-Type: {{contentType}}
 
 ### 6. Скачивание файла (требует авторизации)
 GET {{baseUrl}}/file?filename=test-file.txt
-Authorization: Bearer {{authToken}}
+Authorization: Bearer aa63341a-b3de-44b8-ad69-ae40d9c1f5c6
 
 ### 7. Переименование файла (требует авторизации)
 PUT {{baseUrl}}/file?filename=test-file.txt
-Authorization: Bearer {{authToken}}
+Authorization: Bearer aa63341a-b3de-44b8-ad69-ae40d9c1f5c6
 Content-Type: {{contentType}}
 
 {
@@ -69,12 +68,12 @@ Content-Type: {{contentType}}
 
 ### 8. Удаление файла (требует авторизации)
 DELETE {{baseUrl}}/file?filename=renamed-file.txt
-Authorization: Bearer {{authToken}}
+Authorization: Bearer aa63341a-b3de-44b8-ad69-ae40d9c1f5c6
 Content-Type: {{contentType}}
 
 ### 9. Выход из системы (требует авторизации)
 POST {{baseUrl}}/logout
-Authorization: Bearer {{authToken}}
+Authorization: Bearer aa63341a-b3de-44b8-ad69-ae40d9c1f5c6
 Content-Type: {{contentType}}
 
 ### 10. OPTIONS запрос для CORS проверки

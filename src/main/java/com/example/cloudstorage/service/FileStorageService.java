@@ -7,6 +7,7 @@ import com.example.cloudstorage.repository.FileRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -25,8 +26,7 @@ public class FileStorageService {
     @Value("${file.storage.location}")
     private String storageLocation;
 
-    public void saveFile(UserEntity user, String filename, MultipartFile file) throws IOException {
-        // Валидация имени файла
+    public void saveFile(UserEntity user, String filename, byte[] fileContent, String contentType) throws IOException {
         validateFilename(filename);
 
         Path storagePath = Paths.get(storageLocation).toAbsolutePath().normalize();
@@ -37,7 +37,6 @@ public class FileStorageService {
         String userDir = user.getLogin();
         Path userPath = storagePath.resolve(userDir).normalize();
 
-        // Проверка, что путь остается внутри целевой директории
         if (!userPath.startsWith(storagePath)) {
             throw new FileStorageException("Invalid file path");
         }
@@ -48,18 +47,17 @@ public class FileStorageService {
 
         Path filePath = userPath.resolve(filename).normalize();
 
-        // Дополнительная проверка безопасности
         if (!filePath.startsWith(userPath)) {
             throw new FileStorageException("Invalid file path: attempted path traversal");
         }
 
-        Files.write(filePath, file.getBytes());
+        Files.write(filePath, fileContent);
 
         FileEntity fileEntity = new FileEntity();
         fileEntity.setFilename(filename);
-        fileEntity.setOriginalFilename(file.getOriginalFilename());
-        fileEntity.setSize(file.getSize());
-        fileEntity.setContentType(file.getContentType());
+        fileEntity.setOriginalFilename(filename);
+        fileEntity.setSize((long) fileContent.length);
+        fileEntity.setContentType(contentType);
         fileEntity.setUser(user);
 
         fileRepository.save(fileEntity);
@@ -71,11 +69,18 @@ public class FileStorageService {
         return Files.readAllBytes(filePath);
     }
 
+    @Transactional
     public void deleteFile(UserEntity user, String filename) throws IOException {
         validateFilename(filename);
+
+        // Сначала удаляем файл из файловой системы
         Path filePath = getFilePath(user, filename);
         Files.deleteIfExists(filePath);
+
+        // Затем удаляем запись из базы данных
         fileRepository.deleteByUserAndFilename(user, filename);
+
+        System.out.println("✅ File deleted from filesystem and database: " + filename);
     }
 
     public void renameFile(UserEntity user, String oldFilename, String newFilename) throws IOException {
