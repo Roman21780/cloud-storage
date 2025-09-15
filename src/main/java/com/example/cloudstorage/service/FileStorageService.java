@@ -130,7 +130,7 @@ public class FileStorageService {
     }
 
     // Валидация имени файла против Path Traversal
-    private void validateFilename(String filename) {
+    public void validateFilename(String filename) {
         if (filename == null || filename.isEmpty()) {
             throw new IllegalArgumentException("Filename cannot be null or empty");
         }
