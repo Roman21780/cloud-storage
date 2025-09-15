@@ -24,6 +24,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/clouddb
       SPRING_DATASOURCE_USERNAME: clouduser
       SPRING_DATASOURCE_PASSWORD: cloudpass
+      SPRING_FLYWAY_BASELINE_ON_MIGRATE: "true"
     volumes:
       - file_storage:/app/uploads
     depends_on:
