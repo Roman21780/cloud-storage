@@ -5,6 +5,7 @@ import com.example.cloudstorage.entity.UserEntity;
 import com.example.cloudstorage.exception.FileStorageException;
 import com.example.cloudstorage.repository.FileRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +21,7 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class FileStorageService {
+    @Autowired
     private final FileRepository fileRepository;
     private final UserService userService;
 
@@ -61,6 +63,25 @@ public class FileStorageService {
         fileEntity.setUser(user);
 
         fileRepository.save(fileEntity);
+    }
+
+    public String storeFile(MultipartFile file, String filename, UserEntity user) {
+        try {
+            FileEntity fileEntity = new FileEntity();
+            fileEntity.setFilename(filename);
+            fileEntity.setOriginalFilename(file.getOriginalFilename());
+            fileEntity.setSize(file.getSize());
+            fileEntity.setContentType(file.getContentType());
+            fileEntity.setUser(user);
+
+            // Сохраняем файл в базу
+            fileRepository.save(fileEntity);
+
+            return fileEntity.getId().toString();
+
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to store file: " + e.getMessage(), e);
+        }
     }
 
     public byte[] getFile(UserEntity user, String filename) throws IOException {

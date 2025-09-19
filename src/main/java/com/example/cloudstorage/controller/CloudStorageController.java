@@ -16,13 +16,17 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
 import java.io.IOException;
 import java.util.Base64;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
 @RequiredArgsConstructor
+@CrossOrigin(origins = "http://localhost:8081", allowCredentials = "true")
 public class CloudStorageController {
     private final UserService userService;
     private final TokenService tokenService;
@@ -89,41 +93,37 @@ public class CloudStorageController {
         }
     }
 
-    @PostMapping("/file")
+    @PostMapping(value = "/file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> uploadFile(
-            @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @RequestHeader(value = "auth-token", required = false) String authToken,
-            @RequestParam("filename") @Pattern(regexp = "^[a-zA-Z0-9._-]+$") String filename,
-            @RequestBody FileUploadRequest fileRequest) {
-
-        String token = extractTokenFromHeaders(authHeader, authToken);
-        logRequest("File upload", authHeader, authToken, token);
-
-        if (token == null) {
-            return unauthorizedResponse();
-        }
-
-        if (!tokenService.validateToken(token)) {
-            return unauthorizedResponse();
-        }
-
-        String username = tokenService.getUsernameFromToken(token);
-        UserEntity user = userService.findByLogin(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+            @RequestHeader("Authorization") String authHeader,
+            @RequestParam("filename") String filename,
+            @RequestParam("file") MultipartFile file) {
 
         try {
-            if (fileStorageService.fileExists(user, filename)) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body(new ErrorResponse("File already exists", 400));
+            // Валидация токена
+            String token = authHeader.replace("Bearer ", "");
+            if (!tokenService.validateToken(token)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid token");
             }
 
-            byte[] fileContent = Base64.getDecoder().decode(fileRequest.getContent());
-            fileStorageService.saveFile(user, filename, fileContent, fileRequest.getContentType());
+            String username = tokenService.getUsernameFromToken(token);
+            UserEntity user = userService.findByLogin(username)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
 
-            return ResponseEntity.ok().build();
-        } catch (IOException e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ErrorResponse("Error uploading file", 500));
+            // Сохранение файла
+            String fileId = fileStorageService.storeFile(file, filename, user);
+
+            return ResponseEntity.ok().body(Map.of(
+                    "success", true,
+                    "message", "File uploaded successfully",
+                    "fileId", fileId
+            ));
+
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "File upload failed: " + e.getMessage()
+            ));
         }
     }
 

@@ -84,6 +84,10 @@ bash
 # Запуск всех сервисов
 docker-compose up -d
 
+# Логи
+docker compose logs app
+docker logs cloud-storage-app-1
+
 
 # Запуск базы данных
 docker-compose up postgres -d
