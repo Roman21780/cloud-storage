@@ -5,11 +5,16 @@ import com.example.cloudstorage.entity.UserEntity;
 import com.example.cloudstorage.exception.FileStorageException;
 import com.example.cloudstorage.repository.FileRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -21,52 +26,47 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class FileStorageService {
+
+    private static final Logger log = LoggerFactory.getLogger(FileStorageService.class);
+
     @Autowired
     private final FileRepository fileRepository;
-    private final UserService userService;
 
+    @Setter
     @Value("${file.storage.location}")
     private String storageLocation;
 
-    public void saveFile(UserEntity user, String filename, byte[] fileContent, String contentType) throws IOException {
-        validateFilename(filename);
-
-        Path storagePath = Paths.get(storageLocation).toAbsolutePath().normalize();
-        if (!Files.exists(storagePath)) {
-            Files.createDirectories(storagePath);
-        }
-
-        String userDir = user.getLogin();
-        Path userPath = storagePath.resolve(userDir).normalize();
-
-        if (!userPath.startsWith(storagePath)) {
-            throw new FileStorageException("Invalid file path");
-        }
-
-        if (!Files.exists(userPath)) {
-            Files.createDirectories(userPath);
-        }
-
-        Path filePath = userPath.resolve(filename).normalize();
-
-        if (!filePath.startsWith(userPath)) {
-            throw new FileStorageException("Invalid file path: attempted path traversal");
-        }
-
-        Files.write(filePath, fileContent);
-
-        FileEntity fileEntity = new FileEntity();
-        fileEntity.setFilename(filename);
-        fileEntity.setOriginalFilename(filename);
-        fileEntity.setSize((long) fileContent.length);
-        fileEntity.setContentType(contentType);
-        fileEntity.setUser(user);
-
-        fileRepository.save(fileEntity);
-    }
 
     public String storeFile(MultipartFile file, String filename, UserEntity user) {
         try {
+            validateFilename(filename);
+
+            // Сохраняем файл в файловую систему
+            Path storagePath = Paths.get(storageLocation).toAbsolutePath().normalize();
+            if (!Files.exists(storagePath)) {
+                Files.createDirectories(storagePath);
+            }
+
+            String userDir = user.getLogin();
+            Path userPath = storagePath.resolve(userDir).normalize();
+
+            if (!userPath.startsWith(storagePath)) {
+                throw new FileStorageException("Invalid file path");
+            }
+
+            if (!Files.exists(userPath)) {
+                Files.createDirectories(userPath);
+            }
+
+            Path filePath = userPath.resolve(filename).normalize();
+
+            if (!filePath.startsWith(userPath)) {
+                throw new FileStorageException("Invalid file path: attempted path traversal");
+            }
+
+            Files.write(filePath, file.getBytes());
+
+            // Сохраняем метаданные в базу
             FileEntity fileEntity = new FileEntity();
             fileEntity.setFilename(filename);
             fileEntity.setOriginalFilename(file.getOriginalFilename());
@@ -74,9 +74,7 @@ public class FileStorageService {
             fileEntity.setContentType(file.getContentType());
             fileEntity.setUser(user);
 
-            // Сохраняем файл в базу
             fileRepository.save(fileEntity);
-
             return fileEntity.getId().toString();
 
         } catch (Exception e) {
@@ -85,45 +83,77 @@ public class FileStorageService {
     }
 
     public byte[] getFile(UserEntity user, String filename) throws IOException {
-        validateFilename(filename);
+        log.info("Getting file: {} for user: {}", filename, user.getLogin());
+
+        // 1. Проверить exists в базе
+        Optional<FileEntity> fileEntity = fileRepository.findByUserAndFilename(user, filename);
+        if (fileEntity.isEmpty()) {
+            throw new FileNotFoundException("File not found in database: " + filename);
+        }
+
+        // 2. Проверить exists в файловой системе
         Path filePath = getFilePath(user, filename);
-        return Files.readAllBytes(filePath);
+        log.info("Looking for file at: {}", filePath);
+
+        if (!Files.exists(filePath)) {
+            throw new FileNotFoundException("File not found in filesystem: " + filePath);
+        }
+
+        // 3. Прочитать файл
+        byte[] content = Files.readAllBytes(filePath);
+        log.info("File size: {} bytes", content.length);
+
+        return content;
     }
 
     @Transactional
     public void deleteFile(UserEntity user, String filename) throws IOException {
         validateFilename(filename);
 
-        // Сначала удаляем файл из файловой системы
-        Path filePath = getFilePath(user, filename);
-        Files.deleteIfExists(filePath);
+        // 1. Удаляем из базы данных
+        int deletedCount = fileRepository.deleteByUserAndFilename(user, filename);
+        if (deletedCount == 0) {
+            throw new FileStorageException("File not found in database: " + filename);
+        }
 
-        // Затем удаляем запись из базы данных
-        fileRepository.deleteByUserAndFilename(user, filename);
-
-        System.out.println("✅ File deleted from filesystem and database: " + filename);
+        // 2. Удаляем из файловой системы (если существует)
+        try {
+            Path filePath = getFilePath(user, filename);
+            if (Files.exists(filePath)) {
+                Files.delete(filePath);
+            }
+        } catch (IOException e) {
+            // Логируем, но не прерываем - главное что удалили из БД
+            log.warn("Could not delete physical file: {}", e.getMessage());
+        }
     }
 
     public void renameFile(UserEntity user, String oldFilename, String newFilename) throws IOException {
-        validateFilename(oldFilename);
-        validateFilename(newFilename);
+        log.info("Renaming {} to {} for user {}", oldFilename, newFilename, user.getLogin());
 
+        // 1. Переименовать в файловой системе
         Path oldPath = getFilePath(user, oldFilename);
         Path newPath = getFilePath(user, newFilename);
 
-        Files.move(oldPath, newPath);
+        if (Files.exists(oldPath)) {
+            Files.move(oldPath, newPath);
+            log.info("File renamed in filesystem");
+        }
 
+        // 2. Переименовать в базе данных
         Optional<FileEntity> fileOpt = fileRepository.findByUserAndFilename(user, oldFilename);
         if (fileOpt.isPresent()) {
             FileEntity file = fileOpt.get();
             file.setFilename(newFilename);
             fileRepository.save(file);
+            log.info("File renamed in database");
+        } else {
+            throw new IOException("File not found in database: " + oldFilename);
         }
     }
 
     public List<FileEntity> getUserFiles(UserEntity user, int limit) {
-        List<FileEntity> files = fileRepository.findByUserOrderByCreatedAtDesc(user);
-        return limit > 0 ? files.stream().limit(limit).toList() : files;
+        return fileRepository.findByUserOrderByCreatedAtDesc(user);
     }
 
     private Path getFilePath(UserEntity user, String filename) throws IOException {

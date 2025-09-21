@@ -20,9 +20,15 @@ public class UserService {
     }
 
     public boolean validateUser(String login, String password) {
-        return userRepository.findByLogin(login)
-                .map(user -> passwordEncoder.matches(password, user.getPassword()))
-                .orElse(false);
+        Optional<UserEntity> user = userRepository.findByLogin(login);
+
+        if (user.isEmpty()) {
+            return false;
+        }
+
+        // Проверяем пароль
+        UserEntity userEntity = user.get();
+        return passwordEncoder.matches(password, userEntity.getPassword());
     }
 
     public UserEntity registerUser(String login, String password) {

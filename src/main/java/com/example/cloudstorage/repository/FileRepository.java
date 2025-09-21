@@ -3,6 +3,9 @@ package com.example.cloudstorage.repository;
 import com.example.cloudstorage.entity.FileEntity;
 import com.example.cloudstorage.entity.UserEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,5 +18,7 @@ public interface FileRepository  extends JpaRepository<FileEntity, Long> {
     List<FileEntity> findByUserOrderByCreatedAtDesc(UserEntity user);
     boolean existsByUserAndFilename(UserEntity user, String filename);
     @Transactional
-    void deleteByUserAndFilename(UserEntity user, String filename);
+    @Modifying
+    @Query("DELETE FROM FileEntity f WHERE f.user = :user AND f.filename = :filename")
+    int deleteByUserAndFilename(@Param("user") UserEntity user, @Param("filename") String filename);
 }

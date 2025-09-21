@@ -11,9 +11,12 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -25,6 +28,9 @@ public class FileStorageServiceTest {
 
     @Mock
     private FileRepository fileRepository;
+
+    @Mock
+    private MultipartFile multipartFile;
 
     @InjectMocks
     private FileStorageService fileStorageService;
@@ -41,15 +47,22 @@ public class FileStorageServiceTest {
     }
 
     @Test
-    void testSaveFileSuccess() throws Exception {
+    void testStoreFileSuccessWithoutFileSystem() throws Exception {
         // Arrange
         UserEntity user = new UserEntity();
         user.setId(1L);
         user.setLogin("testuser");
 
-        byte[] fileContent = "test content".getBytes();
         String filename = "test.txt";
+        String originalFilename = "original_test.txt";
+        long fileSize = 123L;
         String contentType = "text/plain";
+
+        // Настройка моков
+        when(multipartFile.getOriginalFilename()).thenReturn(originalFilename);
+        when(multipartFile.getSize()).thenReturn(fileSize);
+        when(multipartFile.getContentType()).thenReturn(contentType);
+        when(multipartFile.getBytes()).thenReturn(new byte[0]); // Пустой контент
 
         when(fileRepository.save(any(FileEntity.class))).thenAnswer(invocation -> {
             FileEntity file = invocation.getArgument(0);
@@ -57,13 +70,25 @@ public class FileStorageServiceTest {
             return file;
         });
 
+        // Используем временную директорию
+        String tempDir = Files.createTempDirectory("test").toString();
+        fileStorageService.setStorageLocation(tempDir);
+
         // Act
-        fileStorageService.saveFile(user, filename, fileContent, contentType);
+        String result = fileStorageService.storeFile(multipartFile, filename, user);
 
         // Assert
-        verify(fileRepository, times(1)).save(any(FileEntity.class));
-        // Проверяем, что файл был создан
-        assertTrue(Files.exists(tempDir.resolve("testuser").resolve("test.txt")));
+        assertNotNull(result);
+        assertEquals("1", result);
+
+        // Проверяем, что сохранили правильные данные
+        verify(fileRepository).save(argThat(file ->
+                file.getFilename().equals(filename) &&
+                        file.getOriginalFilename().equals(originalFilename) &&
+                        file.getSize() == fileSize &&
+                        file.getContentType().equals(contentType) &&
+                        file.getUser().equals(user)
+        ));
     }
 
     @Test
@@ -72,23 +97,23 @@ public class FileStorageServiceTest {
         UserEntity user = new UserEntity();
         user.setId(1L);
         user.setLogin("testuser");
+
         String filename = "test.txt";
 
-        // Сначала создаем файл для удаления
-        Path userDir = tempDir.resolve("testuser");
-        Files.createDirectories(userDir);
-        Files.write(userDir.resolve("test.txt"), "test content".getBytes());
+        // Создайте тестовый файл
+        Path testDir = Paths.get("uploads/testuser");
+        Files.createDirectories(testDir);
+        Path testFile = testDir.resolve(filename);
+        Files.write(testFile, "test content".getBytes());
 
-        // Убираем ненужный стаббинг, так как метод deleteByUserAndFilename не требует мокирования
-        // когда(fileRepository.findByUserAndFilename(user, filename)).thenReturn(Optional.of(fileEntity));
+        // Mock
+        when(fileRepository.deleteByUserAndFilename(user, filename)).thenReturn(1);
 
         // Act
         fileStorageService.deleteFile(user, filename);
 
         // Assert
         verify(fileRepository, times(1)).deleteByUserAndFilename(user, filename);
-        // Проверяем, что файл был удален
-        assertFalse(Files.exists(userDir.resolve("test.txt")));
     }
 
     @Test

@@ -34,46 +34,43 @@ Content-Type: {{contentType}}
 
 ### 4. Проверка валидности токена (ЗАМЕНИТЕ на реальный токен из шага 2)
 GET {{baseUrl}}/list?limit=1
-Authorization: Bearer d7141933-84ca-4031-8d5a-5767fcade597
+Authorization: Bearer ec5a4690-8395-4bd1-88dd-d091875abd9e
 Content-Type: {{contentType}}
 
 ### 4. Загрузка файла
 POST {{baseUrl}}/file?filename=test-file.txt
-Authorization: Bearer d7141933-84ca-4031-8d5a-5767fcade597
-Content-Type: application/json
+Authorization: Bearer ec5a4690-8395-4bd1-88dd-d091875abd9e
+Content-Type: multipart/form-data; boundary=WebAppBoundary
 
-{
-  "content": "VGhpcyBpcyBhIHRlc3QgZmlsZSBjb250ZW50IGZvciBBUEkgdGVzdGluZy4KSGVsbG8gZnJvbSBDbG91ZCBTdG9yYWdlIEFQSSE=",
-  "contentType": "text/plain",
-  "originalFilename": "test-file.txt"
-}
+--WebAppBoundary
+Content-Disposition: form-data; name="file"; filename="test-file.txt"
+Content-Type: text/plain
+
 
 ### 5. Получение списка файлов (требует авторизации)
 GET {{baseUrl}}/list?limit=10
-Authorization: Bearer d7141933-84ca-4031-8d5a-5767fcade597
+Authorization: Bearer ec5a4690-8395-4bd1-88dd-d091875abd9e
 Content-Type: {{contentType}}
 
 ### 6. Скачивание файла (требует авторизации)
 GET {{baseUrl}}/file?filename=test-file.txt
-Authorization: Bearer d7141933-84ca-4031-8d5a-5767fcade597
+Authorization: Bearer ec5a4690-8395-4bd1-88dd-d091875abd9e
+Accept: application/octet-stream
 
 ### 7. Переименование файла (требует авторизации)
-PUT {{baseUrl}}/file?filename=test-file.txt
-Authorization: Bearer d7141933-84ca-4031-8d5a-5767fcade597
+PUT {{baseUrl}}/file?filename=test-file.txt&newFilename=renamed-file.txt
+Authorization: Bearer 81723d6f-89a7-41c1-8c20-f373665e7a35
 Content-Type: {{contentType}}
 
-{
-  "name": "renamed-file.txt"
-}
 
 ### 8. Удаление файла (требует авторизации)
 DELETE {{baseUrl}}/file?filename=renamed-file.txt
-Authorization: Bearer d7141933-84ca-4031-8d5a-5767fcade597
+Authorization: Bearer 81723d6f-89a7-41c1-8c20-f373665e7a35
 Content-Type: {{contentType}}
 
 ### 9. Выход из системы (требует авторизации)
 POST {{baseUrl}}/logout
-Authorization: Bearer d7141933-84ca-4031-8d5a-5767fcade597
+Authorization: Bearer cdf5880f-95c9-4f08-98b3-c6280c4917da
 Content-Type: {{contentType}}
 
 ### 10. OPTIONS запрос для CORS проверки

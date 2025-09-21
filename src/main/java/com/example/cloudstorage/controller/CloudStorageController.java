@@ -24,10 +24,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 @RestController
 @RequiredArgsConstructor
 @CrossOrigin(origins = "http://localhost:8081", allowCredentials = "true")
 public class CloudStorageController {
+    private static final Logger log = LoggerFactory.getLogger(CloudStorageController.class);
     private final UserService userService;
     private final TokenService tokenService;
     private final FileStorageService fileStorageService;
@@ -71,23 +75,23 @@ public class CloudStorageController {
         logRequest("Logout", authHeader, authToken, token);
 
         if (token == null) {
-            System.out.println("❌ No token provided for logout");
+            log.warn("No token provided for logout");
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ErrorResponse("No token provided", 400));
         }
 
         if (!tokenService.validateToken(token)) {
-            System.out.println("❌ Invalid token for logout: " + token);
+            log.warn("Invalid token for logout: {}", token);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(new ErrorResponse("Invalid token", 401));
         }
 
         try {
             tokenService.invalidateToken(token);
-            System.out.println("✅ Logout successful for token: " + token);
+            log.info("Logout successful for token: {}", token);
             return ResponseEntity.ok().build();
         } catch (Exception e) {
-            System.out.println("❌ Error during logout: " + e.getMessage());
+            log.error("Error during logout: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ErrorResponse("Logout failed", 500));
         }
@@ -133,6 +137,8 @@ public class CloudStorageController {
             @RequestHeader(value = "auth-token", required = false) String authToken,
             @RequestParam("filename") String filename) {
 
+        log.info("Download request for file: {}", filename);
+
         String token = extractTokenFromHeaders(authHeader, authToken);
         logRequest("File download", authHeader, authToken, token);
 
@@ -146,14 +152,16 @@ public class CloudStorageController {
 
         try {
             byte[] fileContent = fileStorageService.getFile(user, filename);
+            log.info("File found, size: {} bytes", fileContent.length);
 
             return ResponseEntity.ok()
                     .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
                     .contentType(MediaType.APPLICATION_OCTET_STREAM)
                     .body(fileContent);
         } catch (IOException e) {
+            log.error("Error downloading file: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ErrorResponse("Error downloading file", 500));
+                    .body(new ErrorResponse("Error downloading file: " + e.getMessage(), 500));
         }
     }
 
@@ -188,7 +196,7 @@ public class CloudStorageController {
             @RequestHeader(value = "Authorization", required = false) String authHeader,
             @RequestHeader(value = "auth-token", required = false) String authToken,
             @RequestParam("filename") String filename,
-            @Valid @RequestBody RenameRequest renameRequest) {
+            @RequestParam("newFilename") String newFilename) {
 
         String token = extractTokenFromHeaders(authHeader, authToken);
         logRequest("File rename", authHeader, authToken, token);
@@ -202,7 +210,7 @@ public class CloudStorageController {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         try {
-            fileStorageService.renameFile(user, filename, renameRequest.getName());
+            fileStorageService.renameFile(user, filename, newFilename);
             return ResponseEntity.ok().build();
         } catch (IOException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -214,42 +222,32 @@ public class CloudStorageController {
     public ResponseEntity<?> listFiles(
             @RequestHeader(value = "Authorization", required = false) String authHeader,
             @RequestHeader(value = "auth-token", required = false) String authToken,
-            HttpServletRequest request, // Добавьте это
             @RequestParam(value = "limit", defaultValue = "0") int limit) {
 
-        System.out.println("=== LIST FILES REQUEST ===");
-
-        // Логируем все заголовки
-        java.util.Enumeration<String> headerNames = request.getHeaderNames();
-        while (headerNames.hasMoreElements()) {
-            String headerName = headerNames.nextElement();
-            System.out.println(headerName + ": " + request.getHeader(headerName));
-        }
-
         String token = extractTokenFromHeaders(authHeader, authToken);
-        System.out.println("Extracted token: " + token);
+        log.info("Extracted token: {}", token);
 
         if (token == null) {
-            System.out.println("❌ Token is null - returning 403");
+            log.warn("Token is null - returning 403");
             return unauthorizedResponse();
         }
 
-        System.out.println("🔍 Validating token: " + token);
+        log.debug("Validating token: {}", token);
         boolean isValid = tokenService.validateToken(token);
-        System.out.println("Token validation result: " + isValid);
+        log.debug("Token validation result: {}", isValid);
 
         if (!isValid) {
-            System.out.println("❌ Token validation failed - returning 403");
+            log.warn("Token validation failed - returning 403");
             return unauthorizedResponse();
         }
 
-        System.out.println("✅ Token validated successfully");
+        log.info("Token validated successfully");
 
         String username = tokenService.getUsernameFromToken(token);
-        System.out.println("Retrieved username: " + username);
+        log.debug("Retrieved username: {}", username);
 
         if (username == null) {
-            System.out.println("❌ Username is null - returning 403");
+            log.warn("Username is null - returning 403");
             return unauthorizedResponse();
         }
 
@@ -259,15 +257,14 @@ public class CloudStorageController {
 
             List<FileEntity> files = fileStorageService.getUserFiles(user, limit);
             List<FileResponse> response = files.stream()
-                    .map(file -> new FileResponse(file.getFilename(), file.getSize()))
+                    .map(file -> new FileResponse(file.getFilename(), file.getSize(), file.getCreatedAt()))
                     .collect(Collectors.toList());
 
-            System.out.println("✅ Successfully returned " + files.size() + " files");
+            log.info("Successfully returned {} files", files.size());
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
-            System.out.println("❌ Error in listFiles: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Error in listFiles: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ErrorResponse("Internal server error", 500));
         }
@@ -283,10 +280,10 @@ public class CloudStorageController {
     }
 
     private void logRequest(String operation, String authHeader, String authToken, String extractedToken) {
-        System.out.println("=== " + operation + " ===");
-        System.out.println("Authorization header: " + authHeader);
-        System.out.println("Auth token header: " + authToken);
-        System.out.println("Extracted token: " + extractedToken);
+        log.debug("=== {} ===", operation);
+        log.debug("Authorization header: {}", authHeader);
+        log.debug("Auth token header: {}", authToken);
+        log.debug("Extracted token: {}", extractedToken);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
@@ -304,15 +301,5 @@ public class CloudStorageController {
     private ResponseEntity<ErrorResponse> unauthorizedResponse() {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(new ErrorResponse("Unauthorized", 401));
-    }
-
-    private void logAllHeaders(HttpServletRequest request) {
-        System.out.println("=== REQUEST HEADERS ===");
-        java.util.Enumeration<String> headerNames = request.getHeaderNames();
-        while (headerNames.hasMoreElements()) {
-            String headerName = headerNames.nextElement();
-            System.out.println(headerName + ": " + request.getHeader(headerName));
-        }
-        System.out.println("=== END HEADERS ===");
     }
 }
